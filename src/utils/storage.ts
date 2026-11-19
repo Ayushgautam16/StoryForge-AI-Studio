@@ -359,6 +359,39 @@ export function saveStories(stories: StoryFolder[]) {
   } catch (e) {
     console.error('Failed to save stories to localStorage', e);
   }
+
+  // Asynchronous background cloud sync (non-blocking)
+  if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
+    fetch('/api/stories/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stories }),
+    }).catch(() => {
+      // Direct client-side Supabase sync fallback
+      import('./supabaseClient').then(({ saveStoryToSupabase }) => {
+        stories.forEach(s => saveStoryToSupabase(s));
+      }).catch(() => {});
+    });
+  }
+}
+
+export async function syncWithCloudStories(): Promise<{ stories: StoryFolder[]; source: 'cloud' | 'local' }> {
+  try {
+    if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
+      const res = await fetch('/api/stories');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.stories) && json.stories.length > 0) {
+          const migrated = json.stories.map(migrateStory);
+          localStorage.setItem(STORAGE_KEY_STORIES, JSON.stringify(migrated));
+          return { stories: migrated, source: 'cloud' };
+        }
+      }
+    }
+  } catch (e) {
+    console.info('Cloud sync deferred to localStorage:', e);
+  }
+  return { stories: loadStories(), source: 'local' };
 }
 
 export function getActiveStoryId(): string {
@@ -394,6 +427,15 @@ export function saveSettings(settings: AppSettings) {
     localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
   } catch (e) {
     console.error(e);
+  }
+
+  // Cloud sync
+  if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    }).catch(() => {});
   }
 }
 
