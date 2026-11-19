@@ -188,7 +188,7 @@ export const BackgroundBatch: React.FC<BackgroundBatchProps> = ({
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-100">
-            Background Batch Localizer (Ch 131–135)
+            Background Batch Localizer
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-2xl mt-1">
             Queue multiple novel chapters in parallel sequence. Each chapter is enriched by the human fiction novelist engine, and all newly detected characters/rules are auto-saved directly into <strong className="text-cyan-300">{activeStory.title}</strong>'s Sub-Library with [Auto] badges.
