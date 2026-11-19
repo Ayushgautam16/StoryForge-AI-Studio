@@ -277,7 +277,16 @@ export const BackgroundBatch: React.FC<BackgroundBatchProps> = ({
         </div>
 
         <div className="space-y-3.5">
-          {queue.map((item, index) => {
+          {queue.length === 0 ? (
+            <div className="text-center py-12 px-4 border border-dashed border-slate-800 rounded-xl bg-[#0a0f1d]/50">
+              <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+              <h4 className="text-sm font-semibold text-slate-300">No Chapters in Batch Queue</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                Click &quot;+ Add Chapter&quot; above to queue chapters for automated background localization.
+              </p>
+            </div>
+          ) : (
+            queue.map((item, index) => {
             const isProcessing = item.status === 'processing';
             const isDone = item.status === 'completed';
             const isErr = item.status === 'error';
@@ -365,7 +374,7 @@ export const BackgroundBatch: React.FC<BackgroundBatchProps> = ({
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
 
