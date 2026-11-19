@@ -27,72 +27,15 @@ export const BackgroundBatch: React.FC<BackgroundBatchProps> = ({
   onUpdateStory,
   customApiKey,
 }) => {
-  // Pre-seeded batch queue for Ch 131-135 as requested
-  const [queue, setQueue] = useState<BatchQueueItem[]>([
-    {
-      id: 'batch-131',
-      chapterNumber: 131,
-      chapterTitle: 'Chapter 131: The Shattered Meridian Hall',
-      sourceText: `Elder Wu led thirty disciples of the Nine Clouds sect into the Meridian Hall. Lin Feng was meditating near the ancient spirit furnace.
-"Lin Feng, hand over the Spatial Ring and the Golden Core formula!" Elder Wu shouted.
-Xiao Yan stepped forward, sword in hand. "You dare intrude into our sanctuary?"`,
-      minWords: 300,
-      language: 'natural_mix',
-      status: 'queued',
-      progress: 0,
-    },
-    {
-      id: 'batch-132',
-      chapterNumber: 132,
-      chapterTitle: 'Chapter 132: Crimson Flame Alchemy',
-      sourceText: `The spirit furnace erupted with blue flames. Lin Feng channeled his Qi Gathering technique, suppressing the chaotic fire.
-Elder Wu hesitated. The spiritual pressure radiating from Lin Feng felt like a sleeping dragon waking up.`,
-      minWords: 300,
-      language: 'natural_mix',
-      status: 'queued',
-      progress: 0,
-    },
-    {
-      id: 'batch-133',
-      chapterNumber: 133,
-      chapterTitle: 'Chapter 133: The Sword of Nine Thunders',
-      sourceText: `Lightning struck the peak of Black Wind Gorge. Lin Feng unsheathed the thunder blade.
-"Elder Wu, thirty years ago you betrayed my father," Lin Feng said softly. "Today, that karma is repaid in blood."`,
-      minWords: 300,
-      language: 'natural_mix',
-      status: 'queued',
-      progress: 0,
-    },
-    {
-      id: 'batch-134',
-      chapterNumber: 134,
-      chapterTitle: 'Chapter 134: Tribulation Clouds Over the Sect',
-      sourceText: `Dark clouds assembled above the Nine Clouds mountain range. The tribulation was coming.
-Lin Feng stood against the roaring winds, his eyes cold and calm. Even Elder Wu had retreated five steps in terror.`,
-      minWords: 300,
-      language: 'natural_mix',
-      status: 'queued',
-      progress: 0,
-    },
-    {
-      id: 'batch-135',
-      chapterNumber: 135,
-      chapterTitle: 'Chapter 135: The Dawn of the Sovereign',
-      sourceText: `As the morning sun pierced the storm clouds, the battlefield fell silent.
-Lin Feng gathered his aura. The Golden Core in his dantian glowed with immortal radiance. A new legend had begun.`,
-      minWords: 300,
-      language: 'natural_mix',
-      status: 'queued',
-      progress: 0,
-    },
-  ]);
+  // Batch queue
+  const [queue, setQueue] = useState<BatchQueueItem[]>([]);
 
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
   const [newDiscoveredCount, setNewDiscoveredCount] = useState(0);
 
   // New chapter input modal state
   const [isAddingChapter, setIsAddingChapter] = useState(false);
-  const [newChapterNum, setNewChapterNum] = useState<number>(136);
+  const [newChapterNum, setNewChapterNum] = useState<number>(1);
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [newChapterText, setNewChapterText] = useState('');
   const [newMinWords, setNewMinWords] = useState(300);
