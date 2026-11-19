@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -136,12 +136,7 @@ app.post("/api/localize", async (req, res) => {
       return;
     }
     const ai = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build"
-        }
-      }
+      apiKey
     });
     const rulebook1Summary = (rulebook1 || []).map((r) => `- Term "${r.keyword || r.term || ""}" MUST be translated/replaced with "${r.translation || r.replacement || ""}". Context notes: ${r.contextNotes || "none"}`).join("\n");
     const rulebook2Summary = (rulebook2 || []).map((r) => `- [${r.keyword || r.category || "Style"}] ${r.translation || r.ruleDescription || ""}. Example/Guideline: ${r.contextNotes || r.examples || "none"}`).join("\n");
@@ -227,7 +222,7 @@ Rewrite this chapter as the master novelist. Strictly ensure the final localized
     try {
       const callGemini = async () => {
         let timeoutId;
-        const targetModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+        const targetModel = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
         const executeCall = async (modelName, withThinking = true) => {
           const config = {
             systemInstruction,
@@ -283,9 +278,6 @@ Rewrite this chapter as the master novelist. Strictly ensure the final localized
               }
             }
           };
-          if (withThinking) {
-            config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
-          }
           return await ai.models.generateContent({
             model: modelName,
             contents: prompt,
@@ -294,20 +286,21 @@ Rewrite this chapter as the master novelist. Strictly ensure the final localized
         };
         const generatePromise = (async () => {
           try {
-            return await executeCall(targetModel, true);
+            return await executeCall(targetModel);
           } catch (modelErr) {
             const errStr = String(modelErr?.message || "");
-            if (errStr.includes("thinking") || errStr.includes("ThinkingLevel")) {
-              return await executeCall(targetModel, false);
-            }
-            if (errStr.includes("not found") || errStr.includes("404")) {
-              return await executeCall("gemini-2.0-flash", false);
+            if (errStr.includes("not found") || errStr.includes("404") || errStr.includes("503")) {
+              try {
+                return await executeCall("gemini-3.8-flash");
+              } catch {
+                return await executeCall("gemini-flash-latest");
+              }
             }
             throw modelErr;
           }
         })();
         const timeoutPromise = new Promise((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error("AI request timeout after 90s")), 9e4);
+          timeoutId = setTimeout(() => reject(new Error("AI request timeout after 15s")), 15e3);
         });
         try {
           return await Promise.race([generatePromise, timeoutPromise]);
@@ -320,10 +313,14 @@ Rewrite this chapter as the master novelist. Strictly ensure the final localized
         response = await callGemini();
       } catch (firstErr) {
         const msg = String(firstErr?.message || "");
-        const isTransient = msg.includes("429") || msg.includes("503") || msg.includes("500") || msg.includes("RESOURCE_EXHAUSTED");
+        const isTransient = msg.includes("429") || msg.includes("503") || msg.includes("RESOURCE_EXHAUSTED");
         if (isTransient) {
-          await new Promise((r) => setTimeout(r, 1500));
-          response = await callGemini();
+          try {
+            await new Promise((r) => setTimeout(r, 1e3));
+            response = await callGemini();
+          } catch (retryErr) {
+            throw retryErr;
+          }
         } else {
           throw firstErr;
         }
@@ -434,7 +431,7 @@ app.get("/api/health", async (_req, res) => {
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
     service: "StoryForge AI Studio",
     version: "1.0.0",
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
     supabaseConfigured: !!supabaseUrl && !!supabaseKey
   });
 });
