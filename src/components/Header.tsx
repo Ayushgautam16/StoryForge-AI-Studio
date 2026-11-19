@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems = [
     { id: 'dashboard' as const, label: 'Dashboard (Workspace)', icon: Sparkles, badge: 'Studio' },
     { id: 'library' as const, label: 'Master Library (Folders)', icon: Layers, badge: `${stories.length}` },
-    { id: 'batch' as const, label: 'Background Batch', icon: Clock, badge: 'Ch 131–135' },
+    { id: 'batch' as const, label: 'Background Batch', icon: Clock, badge: 'Batch' },
     { id: 'audit' as const, label: 'Scan & Audit', icon: Eye, badge: 'Diff' },
   ];
 
