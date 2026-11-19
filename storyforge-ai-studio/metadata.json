@@ -1,0 +1,6 @@
+{
+  "name": "KathaStudio AI - Story Localization & Editing Studio",
+  "description": "A dark-mode, mobile-first AI Story Localization Studio with TubeGen.ai-style visual pipeline, nested folder library, human fiction novelist engine, and click-to-jump error audit.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
