@@ -205,10 +205,12 @@ export const BackgroundBatch: React.FC<BackgroundBatchProps> = ({
 
           <button
             onClick={handleRunBatch}
-            disabled={isProcessingBatch || completedCount === queue.length}
+            disabled={isProcessingBatch || queue.length === 0 || completedCount === queue.length}
             className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg transition-all ${
               isProcessingBatch
                 ? 'bg-emerald-950 text-emerald-400 border border-emerald-700/60'
+                : queue.length === 0
+                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                 : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold shadow-[0_0_20px_rgba(16,185,129,0.3)]'
             }`}
           >
@@ -233,11 +235,11 @@ export const BackgroundBatch: React.FC<BackgroundBatchProps> = ({
           <div>
             <div className="text-[11px] text-slate-400 font-mono">Queue Progress</div>
             <div className="text-lg font-bold text-slate-100 font-mono">
-              {completedCount} / {queue.length} Completed
+              {queue.length > 0 ? `${completedCount} / ${queue.length} Completed` : '0 Chapters Queued'}
             </div>
           </div>
           <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
-            {Math.round((completedCount / queue.length) * 100)}%
+            {queue.length > 0 ? Math.round((completedCount / queue.length) * 100) : 0}%
           </div>
         </div>
 
