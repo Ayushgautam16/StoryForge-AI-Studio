@@ -25,28 +25,8 @@ export const ScanAudit: React.FC<ScanAuditProps> = ({
   initialSource = '',
   initialOutput = '',
 }) => {
-  const [sourceText, setSourceText] = useState(
-    initialSource ||
-    `Lin Feng stood alone at the peak of Black Wind Gorge. The wind was howling, razor sharp and freezing.
-Elder Wu stepped out from the shadows, his eyes burning with intense greed and malice.
-"Lin Feng, you useless trash! Hand over the Golden Core and I might leave your corpse intact," Elder Wu sneered coldly, raising his flying sword.
-Lin Feng remained utterly silent. His breath formed mist in the air. Inside his dantian, the Qi Gathering vortex began to spin violently.
-"If you want the Golden Core," Lin Feng said softly, his fingers tightening on his rusted blade, "come take it yourself. But remember, once this sword leaves its sheath, death is the only answer."
-Elder Wu laughed arrogantly. "Courting death! A mere junior dares lecture me?"`
-  );
-
-  const [outputText, setOutputText] = useState(
-    initialOutput ||
-    `काल वायु घाटी की बर्फीली चट्टान पर खड़ा रुद्र हवा के थपेड़ों को महसूस कर रहा था। हवा सिर्फ ठंडी नहीं थी—वह हड्डियों के भीतर तक चुभती हुई किसी भूखे खंजर जैसी महसूस हो रही थी। चारों तरफ ऐसा सन्नाटा था मानो पूरी घाटी किसी अनहोनी की राह देख रही हो।
-
-सामने खड़ा ऋषि वशिष्ठ अपनी परछाई से निकलकर आगे बढ़ा। उसकी आंखों में लालच और नफरत का ऐसा जहरीला संगम था जो छुपाए नहीं छुप रहा था। 
-
-"रुद्र! स्वर्ण चक्र मेरे हवाले कर दे, शायद तेरी चिता को सम्मानजनक विदाई मिल जाए!" वशिष्ठ की आवाज में कड़कती हुई गुर्राहट थी।
-
-लेकिन रुद्र के चेहरे पर शिकन तक न आई। उसके नाभि केंद्र में प्राण संचय का चक्र तेजी से घूमने लगा था। उसने अपनी शून्यता में डूबी उंगलियों को तलवार की मूठ पर कस लिया।
-
-"अगर स्वर्ण चक्र चाहिए, वशिष्ठ," रुद्र की आवाज बेहद शांत लेकिन पत्थर की तरह सख्त थी, "तो खुद आकर छीन लो। लेकिन याद रखना, मेरी तलवार जब म्यान से बाहर आती है, तो सिर्फ लहू पीकर ही वापस लौटती है।"`
-  );
+  const [sourceText, setSourceText] = useState(initialSource || '');
+  const [outputText, setOutputText] = useState(initialOutput || '');
 
   // Stats calculation
   const sourceWordCount = sourceText.trim() ? sourceText.trim().split(/\s+/).filter(Boolean).length : 0;

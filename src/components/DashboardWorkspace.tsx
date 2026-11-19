@@ -43,15 +43,7 @@ export const DashboardWorkspace: React.FC<DashboardWorkspaceProps> = ({
   customApiKey,
 }) => {
   // Input State
-  const [inputText, setInputText] = useState<string>(
-    `Lin Feng stood alone at the peak of Black Wind Gorge. The wind was howling, razor sharp and freezing.
-Elder Wu stepped out from the shadows, his eyes burning with intense greed and malice.
-"Lin Feng, you useless trash! Hand over the Golden Core and I might leave your corpse intact," Elder Wu sneered coldly, raising his flying sword.
-Lin Feng remained utterly silent. His breath formed mist in the air. Inside his dantian, the Qi Gathering vortex began to spin violently.
-"If you want the Golden Core," Lin Feng said softly, his fingers tightening on his rusted blade, "come take it yourself. But remember, once this sword leaves its sheath, death is the only answer."
-Elder Wu laughed arrogantly. "Courting death! A mere junior dares lecture me?"
-The two figures clashed as lightning torn through the dark sky.`
-  );
+  const [inputText, setInputText] = useState<string>('');
   
   // Settings & Parameters
   const [language, setLanguage] = useState<LanguageBlend>('natural_mix');
