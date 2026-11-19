@@ -7,6 +7,7 @@ import {
   setActiveStoryId, 
   loadSettings, 
   saveSettings,
+  syncWithCloudStories,
   INITIAL_STORIES
 } from './utils/storage';
 import { Header } from './components/Header';
@@ -39,10 +40,19 @@ export default function App() {
   const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Sync to localStorage
+  // Sync to localStorage & cloud
   useEffect(() => {
     saveStories(stories);
   }, [stories]);
+
+  // Initial cloud sync
+  useEffect(() => {
+    syncWithCloudStories().then(({ stories: cloudStories, source }) => {
+      if (source === 'cloud' && cloudStories.length > 0) {
+        setStories(cloudStories);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     setActiveStoryId(activeStoryId);
