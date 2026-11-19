@@ -4,12 +4,16 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const port = parseInt(process.env.PORT || "3000", 10);
 app.use(express.json({ limit: "25mb" }));
+const supabaseUrl = process.env.SUPABASE_URL || "https://kkmqhjtyiizkeghkpide.supabase.co";
+const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_UrqIwtcFoGGafQIdfJj3EQ_roBucUaY";
+const supabase = createClient(supabaseUrl, supabaseKey);
 function countWords(str) {
   if (!str) return 0;
   return str.trim().split(/\s+/).filter(Boolean).length;
@@ -223,12 +227,10 @@ Rewrite this chapter as the master novelist. Strictly ensure the final localized
     try {
       const callGemini = async () => {
         let timeoutId;
-        const generatePromise = ai.models.generateContent({
-          model: "gemini-4-hydrogen",
-          contents: prompt,
-          config: {
+        const targetModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+        const executeCall = async (modelName, withThinking = true) => {
+          const config = {
             systemInstruction,
-            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
             responseMimeType: "application/json",
             responseSchema: {
               type: Type.OBJECT,
@@ -280,8 +282,30 @@ Rewrite this chapter as the master novelist. Strictly ensure the final localized
                 }
               }
             }
+          };
+          if (withThinking) {
+            config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
           }
-        });
+          return await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config
+          });
+        };
+        const generatePromise = (async () => {
+          try {
+            return await executeCall(targetModel, true);
+          } catch (modelErr) {
+            const errStr = String(modelErr?.message || "");
+            if (errStr.includes("thinking") || errStr.includes("ThinkingLevel")) {
+              return await executeCall(targetModel, false);
+            }
+            if (errStr.includes("not found") || errStr.includes("404")) {
+              return await executeCall("gemini-2.0-flash", false);
+            }
+            throw modelErr;
+          }
+        })();
         const timeoutPromise = new Promise((_, reject) => {
           timeoutId = setTimeout(() => reject(new Error("AI request timeout after 90s")), 9e4);
         });
@@ -402,6 +426,187 @@ app.post("/api/scan-audit", (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+app.get("/api/health", async (_req, res) => {
+  res.json({
+    status: "healthy",
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    service: "StoryForge AI Studio",
+    version: "1.0.0",
+    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    supabaseConfigured: !!supabaseUrl && !!supabaseKey
+  });
+});
+app.get("/api/supabase/status", async (_req, res) => {
+  try {
+    const { data, error } = await supabase.from("stories").select("id").limit(1);
+    if (error) {
+      res.json({
+        isConnected: true,
+        tablesReady: false,
+        message: `Connected to Supabase endpoint, but table error: ${error.message}`,
+        error: error.message
+      });
+      return;
+    }
+    res.json({
+      isConnected: true,
+      tablesReady: true,
+      message: "Supabase connected and stories table is ready!"
+    });
+  } catch (err) {
+    res.json({
+      isConnected: false,
+      tablesReady: false,
+      message: err.message || "Unable to reach Supabase"
+    });
+  }
+});
+app.get("/api/stories", async (_req, res) => {
+  try {
+    const { data, error } = await supabase.from("stories").select("*").order("updated_at", { ascending: false });
+    if (error) {
+      res.status(200).json({ success: false, stories: null, message: error.message });
+      return;
+    }
+    const formattedStories = (data || []).map((row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description || "",
+      genre: row.genre || "General Fiction",
+      colorTheme: row.color_theme || "from-cyan-600 via-teal-700 to-emerald-900",
+      rulebook1: Array.isArray(row.rulebook1) ? row.rulebook1 : [],
+      rulebook2: Array.isArray(row.rulebook2) ? row.rulebook2 : [],
+      customRulebooks: Array.isArray(row.custom_rulebooks) ? row.custom_rulebooks : void 0,
+      characters: Array.isArray(row.characters) ? row.characters : [],
+      history: Array.isArray(row.history) ? row.history : [],
+      createdAt: row.created_at || (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: row.updated_at || (/* @__PURE__ */ new Date()).toISOString()
+    }));
+    res.json({ success: true, stories: formattedStories });
+  } catch (err) {
+    res.status(200).json({ success: false, stories: null, message: err.message });
+  }
+});
+app.post("/api/stories", async (req, res) => {
+  try {
+    const story = req.body;
+    if (!story || !story.id || !story.title) {
+      res.status(400).json({ error: "Valid story object with id and title is required." });
+      return;
+    }
+    const payload = {
+      id: story.id,
+      title: story.title,
+      description: story.description || "",
+      genre: story.genre || "General Fiction",
+      color_theme: story.colorTheme || "from-cyan-600 via-teal-700 to-emerald-900",
+      rulebook1: story.rulebook1 || [],
+      rulebook2: story.rulebook2 || [],
+      custom_rulebooks: story.customRulebooks || [],
+      characters: story.characters || [],
+      history: story.history || [],
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const { error } = await supabase.from("stories").upsert(payload, { onConflict: "id" });
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.json({ success: true, id: story.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.delete("/api/stories/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from("stories").delete().eq("id", id);
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.json({ success: true, deleted: id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/stories/sync", async (req, res) => {
+  try {
+    const { stories } = req.body;
+    if (!Array.isArray(stories)) {
+      res.status(400).json({ error: "stories must be an array" });
+      return;
+    }
+    const payloads = stories.map((s) => ({
+      id: s.id,
+      title: s.title,
+      description: s.description || "",
+      genre: s.genre || "General Fiction",
+      color_theme: s.colorTheme || "from-cyan-600 via-teal-700 to-emerald-900",
+      rulebook1: s.rulebook1 || [],
+      rulebook2: s.rulebook2 || [],
+      custom_rulebooks: s.customRulebooks || [],
+      characters: s.characters || [],
+      history: s.history || [],
+      updated_at: s.updatedAt || (/* @__PURE__ */ new Date()).toISOString()
+    }));
+    const { error } = await supabase.from("stories").upsert(payloads, { onConflict: "id" });
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.json({ success: true, count: payloads.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.get("/api/settings", async (_req, res) => {
+  try {
+    const { data, error } = await supabase.from("settings").select("*").eq("id", "default_settings").single();
+    if (error || !data) {
+      res.json({ success: false, settings: null });
+      return;
+    }
+    res.json({
+      success: true,
+      settings: {
+        geminiApiKey: data.gemini_api_key || "",
+        claudeApiKey: data.claude_api_key || "",
+        activeProvider: data.active_provider || "gemini",
+        targetWordExtraMin: data.target_word_extra_min || 100,
+        targetWordExtraMax: data.target_word_extra_max || 150,
+        autoLearnEntities: data.auto_learn_entities ?? true,
+        soundEffects: data.sound_effects ?? true
+      }
+    });
+  } catch (err) {
+    res.json({ success: false, settings: null, error: err.message });
+  }
+});
+app.post("/api/settings", async (req, res) => {
+  try {
+    const s = req.body;
+    const payload = {
+      id: "default_settings",
+      gemini_api_key: s.geminiApiKey || "",
+      claude_api_key: s.claudeApiKey || "",
+      active_provider: s.activeProvider || "gemini",
+      target_word_extra_min: s.targetWordExtraMin || 100,
+      target_word_extra_max: s.targetWordExtraMax || 150,
+      auto_learn_entities: s.autoLearnEntities ?? true,
+      sound_effects: s.soundEffects ?? true,
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const { error } = await supabase.from("settings").upsert(payload, { onConflict: "id" });
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 async function startServer() {

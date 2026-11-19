@@ -11,7 +11,8 @@ import {
   Eye, 
   FolderPlus,
   BookMarked,
-  Menu
+  Menu,
+  Database
 } from 'lucide-react';
 import { StoryFolder } from '../types';
 
@@ -168,14 +169,26 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Settings Trigger */}
-          <button
-            onClick={onOpenSettings}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border border-slate-800 transition-colors"
-            title="Settings & JSON Backup/Restore"
-          >
-            <Sliders className="w-4 h-4" />
-          </button>
+          {/* Controls: Supabase DB & Settings */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onOpenSettings}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0e1628] hover:bg-[#121c32] text-slate-300 border border-cyan-950/80 text-[11px] font-mono transition-all group"
+              title="Supabase Cloud DB Status & Settings"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span className="text-slate-400 group-hover:text-cyan-300 transition-colors">Supabase</span>
+            </button>
+
+            {/* Settings Trigger */}
+            <button
+              onClick={onOpenSettings}
+              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border border-slate-800 transition-colors"
+              title="Settings & JSON Backup/Restore"
+            >
+              <Sliders className="w-4 h-4" />
+            </button>
+          </div>
 
         </div>
 

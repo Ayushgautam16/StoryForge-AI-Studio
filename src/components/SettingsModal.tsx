@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, 
   Key, 
@@ -10,10 +10,15 @@ import {
   ShieldCheck, 
   Sparkles,
   FileJson,
-  Cpu
+  Cpu,
+  Database,
+  RefreshCw,
+  Copy,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { AppSettings } from '../types';
-import { exportFullBackupJSON, importFullBackupJSON, INITIAL_STORIES, saveStories } from '../utils/storage';
+import { exportFullBackupJSON, importFullBackupJSON, INITIAL_STORIES, saveStories, loadStories } from '../utils/storage';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -34,6 +39,105 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [dbStatus, setDbStatus] = useState<{
+    checking: boolean;
+    connected?: boolean;
+    tablesReady?: boolean;
+    message?: string;
+  }>({ checking: false });
+  const [isCopiedSql, setIsCopiedSql] = useState(false);
+  const [isSyncingDb, setIsSyncingDb] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      checkDb();
+    }
+  }, [isOpen]);
+
+  const checkDb = async () => {
+    setDbStatus({ checking: true });
+    try {
+      const res = await fetch('/api/supabase/status');
+      const data = await res.json();
+      setDbStatus({
+        checking: false,
+        connected: data.isConnected,
+        tablesReady: data.tablesReady,
+        message: data.message,
+      });
+    } catch (e: any) {
+      setDbStatus({
+        checking: false,
+        connected: false,
+        tablesReady: false,
+        message: e.message || 'Cannot reach server API',
+      });
+    }
+  };
+
+  const handleSyncToSupabase = async () => {
+    setIsSyncingDb(true);
+    try {
+      const currentStories = loadStories();
+      const res = await fetch('/api/stories/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stories: currentStories }),
+      });
+      if (res.ok) {
+        setBackupMessage('Stories successfully synced to Supabase database!');
+      } else {
+        const err = await res.json();
+        setBackupMessage(`Supabase notice: ${err.error || 'Ensure SQL tables are created'}`);
+      }
+    } catch (e: any) {
+      setBackupMessage(`Sync failed: ${e.message}`);
+    } finally {
+      setIsSyncingDb(false);
+      setTimeout(() => setBackupMessage(null), 5000);
+    }
+  };
+
+  const handleCopySqlSchema = () => {
+    const sql = `-- Supabase Schema for StoryForge / KathaStudio
+CREATE TABLE IF NOT EXISTS public.stories (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  genre TEXT DEFAULT 'General Fiction',
+  color_theme TEXT DEFAULT 'from-cyan-600 via-teal-700 to-emerald-900',
+  rulebook1 JSONB DEFAULT '[]'::jsonb,
+  rulebook2 JSONB DEFAULT '[]'::jsonb,
+  custom_rulebooks JSONB DEFAULT '[]'::jsonb,
+  characters JSONB DEFAULT '[]'::jsonb,
+  history JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.settings (
+  id TEXT PRIMARY KEY DEFAULT 'default_settings',
+  gemini_api_key TEXT DEFAULT '',
+  claude_api_key TEXT DEFAULT '',
+  active_provider TEXT DEFAULT 'gemini',
+  target_word_extra_min INTEGER DEFAULT 100,
+  target_word_extra_max INTEGER DEFAULT 150,
+  auto_learn_entities BOOLEAN DEFAULT true,
+  sound_effects BOOLEAN DEFAULT true,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public access to stories" ON public.stories FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public access to settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);`;
+
+    navigator.clipboard.writeText(sql);
+    setIsCopiedSql(true);
+    setTimeout(() => setIsCopiedSql(false), 3000);
+  };
 
   if (!isOpen) return null;
 
@@ -231,6 +335,85 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 Auto-learn discovered characters &amp; terms into active Sub-Library with [Auto] badge
               </span>
             </label>
+          </div>
+
+          {/* Supabase Cloud Database Panel */}
+          <div className="p-4 rounded-xl bg-[#0a0f1d] border border-cyan-950/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-200 font-mono flex items-center gap-1.5">
+                <Database className="w-4 h-4 text-emerald-400" />
+                Supabase Cloud Database
+              </span>
+              <div className="flex items-center gap-1.5">
+                {dbStatus.checking ? (
+                  <span className="text-[10px] text-cyan-400 font-mono flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3 animate-spin" /> Checking...
+                  </span>
+                ) : dbStatus.tablesReady ? (
+                  <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                    <CheckCircle2 className="w-3 h-3" /> Connected & Ready
+                  </span>
+                ) : dbStatus.connected ? (
+                  <span className="text-[10px] text-amber-400 font-mono flex items-center gap-1 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-500/30">
+                    <AlertCircle className="w-3 h-3" /> Connected (Init Tables)
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-700">
+                    Local Storage Fallback
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Target: <code className="text-cyan-300 font-mono">https://kkmqhjtyiizkeghkpide.supabase.co</code>
+              {dbStatus.message && (
+                <span className="block text-[10px] text-slate-400 mt-1 font-mono">
+                  Status: {dbStatus.message}
+                </span>
+              )}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={checkDb}
+                disabled={dbStatus.checking}
+                className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${dbStatus.checking ? 'animate-spin' : ''}`} />
+                <span>Test DB Status</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSyncToSupabase}
+                disabled={isSyncingDb}
+                className="py-2 px-2.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/80 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+              >
+                <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{isSyncingDb ? 'Syncing...' : 'Sync to Supabase'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopySqlSchema}
+                className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                title="Copy schema SQL to run in Supabase SQL editor"
+              >
+                {isCopiedSql ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Copied SQL!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Copy Schema SQL</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* JSON Backup & Restore Feature */}
